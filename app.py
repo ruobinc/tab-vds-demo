@@ -15,12 +15,42 @@ SAMPLE_QUERY_1 = {
 }
 
 SAMPLE_QUERY_2 = {
-    "fields": [{"fieldCaption": "利益", "function": "SUM", "maxDecimalPlaces": 2}]
+    "fields": [{"fieldCaption": "売上", "function": "SUM", "maxDecimalPlaces": 2}],
+    "filters": [
+        {
+            "field": {"fieldCaption": "オーダー日"},
+            "filterType": "QUANTITATIVE_DATE",
+            "quantitativeFilterType": "RANGE",
+            "minDate": "2024-01-01",
+            "maxDate": "2024-12-31",
+        }
+    ],
 }
 
 SAMPLE_QUERY_3 = {
-    "fields": [{"fieldCaption": "売上", "function": "SUM", "maxDecimalPlaces": 2}]
-}
+    "fields": [
+      { "fieldCaption": "カテゴリ", "sortPriority": 1 },
+      { "fieldCaption": "売上", "function": "SUM", "fieldAlias": "Sales" },
+      { "fieldCaption": "利益", "function": "SUM", "fieldAlias": "Profit" },
+      {
+        "fieldCaption": "Profit Margin",
+        "calculation": "SUM([利益]) / SUM([売上])",
+        "maxDecimalPlaces": 4,
+        "sortPriority": 2,
+        "sortDirection": "DESC"
+      }
+    ],
+    "filters": [
+      {
+        "filterType": "DATE",
+        "field": { "fieldCaption": "オーダー日" },
+        "periodType": "MONTHS",
+        "dateRangeType": "NEXTN",
+        "rangeN": 12,
+        "anchorDate": "2024-04-01"
+      }
+    ]
+  }
 
 def generate_jwt_token(secret_id, secret_value, client_id, username, token_expiry_minutes=1):
     """
@@ -220,21 +250,26 @@ def main():
             
             with col1:
                 st.subheader("クエリ入力")
-                # サンプルクエリボタン
+                # サンプルクエリ選択
                 st.subheader("サンプルクエリ")
-                col_btn1, col_btn2, col_btn3 = st.columns(3)
                 
-                with col_btn1:
-                    if st.button("サンプル1", key="sample1"):
-                        st.session_state.sample_query = json.dumps(SAMPLE_QUERY_1, ensure_ascii=False, indent=2)
+                sample_options = {
+                    "売上集計": SAMPLE_QUERY_1,
+                    "2024年売上集計": SAMPLE_QUERY_2,
+                    "2024年カテゴリ別利益率集計": SAMPLE_QUERY_3
+                }
+                selected_sample = st.selectbox(
+                    "サンプルを選択",
+                    options=list(sample_options.keys()),
+                    key="sample_selector"
+                )
                 
-                with col_btn2:
-                    if st.button("サンプル2", key="sample2"):
-                        st.session_state.sample_query = json.dumps(SAMPLE_QUERY_2, ensure_ascii=False, indent=2)
-                
-                with col_btn3:
-                    if st.button("サンプル3", key="sample3"):
-                        st.session_state.sample_query = json.dumps(SAMPLE_QUERY_3, ensure_ascii=False, indent=2)
+                if st.button("選択したサンプルを挿入", key="insert_sample", use_container_width=True):
+                    st.session_state.sample_query = json.dumps(
+                        sample_options[selected_sample], 
+                        ensure_ascii=False, 
+                        indent=2
+                    )
                 
                 with st.form("vizql_form"):
                     query = st.text_area(
