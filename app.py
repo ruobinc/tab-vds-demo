@@ -63,7 +63,7 @@ def generate_jwt_token(secret_id, secret_value, client_id, username, token_expir
         "tableau:viz_data_service:read",
     ]
     
-    exp = datetime.datetime.utcnow() + datetime.timedelta(minutes=token_expiry_minutes)
+    exp = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=token_expiry_minutes)
     
     payload = {
         "iss": client_id,
@@ -169,33 +169,33 @@ def main():
                 "Secret ID", 
                 value=os.getenv("TABLEAU_SECRET_ID", ""),
                 type="password",
-                help="環境変数 TABLEAU_SECRET_ID からも取得可能"
+                help="シークレットID"
             )
             secret_value = st.text_input(
                 "Secret Value", 
                 value=os.getenv("TABLEAU_SECRET_VALUE", ""),
                 type="password",
-                help="環境変数 TABLEAU_SECRET_VALUE からも取得可能"
+                help="シークレット値"
             )
             client_id = st.text_input(
                 "Client ID",
                 value=os.getenv("TABLEAU_CLIENT_ID", ""),
-                help="環境変数 TABLEAU_CLIENT_ID からも取得可能"
+                help="クライアントID"
             )
             username = st.text_input(
                 "Username",
                 value=os.getenv("TABLEAU_USERNAME", ""),
-                help="環境変数 TABLEAU_USERNAME からも取得可能"
+                help="ユーザー名"
             )
             embed_url = st.text_input(
                 "Embed URL", 
                 value=os.getenv("TABLEAU_EMBED_URL", ""),
-                help="環境変数 TABLEAU_EMBED_URL からも取得可能。"
+                help="埋め込みURL"
             )
             site_name = st.text_input(
                 "サイト名", 
                 value=os.getenv("TABLEAU_SITE_NAME", ""),
-                help="環境変数 TABLEAU_SITE_NAME からも取得可能。"
+                help="Tableau サイト名"
             )
             datasource_luid = st.text_input(
                 "データソースLUID",
@@ -214,9 +214,9 @@ def main():
                     st.session_state.site_name = site_name
                     st.session_state.datasource_luid = datasource_luid
                     st.session_state.credentials_token = signin_with_jwt(st.session_state.server_url, token, site_name)
-                    st.success("認証情報が設定されました！")
+                    st.success("✅ 認証情報が設定されました！")
                 except Exception as e:
-                    st.error(f"JWT生成エラー: {str(e)}")
+                    st.error(f"❌ JWT生成エラー: {str(e)}")
     
     # メインコンテンツをタブで分割
     tab1, tab2 = st.tabs(["Tableau Web Authoring", "VizQL Data Service"])
@@ -239,7 +239,7 @@ def main():
             
             components.html(embed_html, height=850)
         else:
-            st.info("認証情報を設定するとTableau Web Authoringが表示されます")
+            st.info("🔐 サイドバーで認証情報を設定するとTableau Web Authoringが表示されます")
     
     with tab2:
         st.header("VizQL Data Service")
@@ -251,25 +251,40 @@ def main():
             with col1:
                 st.subheader("クエリ入力")
                 # サンプルクエリ選択
-                st.subheader("サンプルクエリ")
-                
-                sample_options = {
-                    "売上集計": SAMPLE_QUERY_1,
-                    "2024年売上集計": SAMPLE_QUERY_2,
-                    "2024年カテゴリ別利益率集計": SAMPLE_QUERY_3
-                }
-                selected_sample = st.selectbox(
-                    "サンプルを選択",
-                    options=list(sample_options.keys()),
-                    key="sample_selector"
-                )
-                
-                if st.button("選択したサンプルを挿入", key="insert_sample", use_container_width=True):
-                    st.session_state.sample_query = json.dumps(
-                        sample_options[selected_sample], 
-                        ensure_ascii=False, 
-                        indent=2
+                with st.expander("📋 サンプルクエリ", expanded=False):
+                    sample_options = {
+                        "📊 売上集計": SAMPLE_QUERY_1,
+                        "📅 2024年売上集計（期間フィルタ）": SAMPLE_QUERY_2,
+                        "📈 2024年カテゴリ別利益率集計（計算フィールド）": SAMPLE_QUERY_3
+                    }
+                    selected_sample = st.selectbox(
+                        "サンプルクエリを選択",
+                        options=list(sample_options.keys()),
+                        key="sample_selector"
                     )
+                    
+                    col_preview, col_insert = st.columns([3, 1])
+                    
+                    with col_preview:
+                        if st.button("📋 プレビュー", key="preview_sample", use_container_width=True):
+                            st.session_state.preview_query = json.dumps(
+                                sample_options[selected_sample], 
+                                ensure_ascii=False, 
+                                indent=2
+                            )
+                    
+                    with col_insert:
+                        if st.button("➕ 挿入", key="insert_sample", use_container_width=True):
+                            st.session_state.sample_query = json.dumps(
+                                sample_options[selected_sample], 
+                                ensure_ascii=False, 
+                                indent=2
+                            )
+                            st.success("クエリを挿入しました！")
+                    
+                    if "preview_query" in st.session_state:
+                        st.subheader("プレビュー")
+                        st.code(st.session_state.preview_query, language="json")
                 
                 with st.form("vizql_form"):
                     query = st.text_area(
@@ -281,14 +296,22 @@ def main():
                     
                     submit_query = st.form_submit_button("クエリ実行")
                     
-                    if submit_query and query:
-                        # queryがstring形式の場合はdictに変換
-                        if isinstance(query, str):
-                            try:
-                                query = json.loads(query)
-                            except json.JSONDecodeError:
-                                st.warning("フォーマットが誤っています")
-                                return
+                    if submit_query:
+                        if not query.strip():
+                            st.warning("⚠️ クエリが空です。VizQLクエリを入力してください。")
+                        else:
+                            # queryがstring形式の場合はdictに変換
+                            if isinstance(query, str):
+                                try:
+                                    parsed_query = json.loads(query)
+                                    if not isinstance(parsed_query, dict):
+                                        st.error("❌ クエリは辞書形式である必要があります。")
+                                    else:
+                                        query = parsed_query
+                                except json.JSONDecodeError as e:
+                                    st.error(f"❌ JSONフォーマットエラー: {str(e)}")
+                                except Exception as e:
+                                    st.error(f"❌ クエリ解析エラー: {str(e)}")
                         with st.spinner("VizQLクエリを実行中..."):
                             result = execute_vizql_query(
                                 st.session_state.server_url,
@@ -300,9 +323,9 @@ def main():
                             st.session_state.vizql_result = result
                             
                             if result["success"]:
-                                st.success("クエリが正常に実行されました！")
+                                st.success("✅ クエリが正常に実行されました！")
                             else:
-                                st.error(f"エラーが発生しました: {result['error']}")
+                                st.error(f"❌ エラーが発生しました: {result['error']}")
             
             with col2:
                 st.subheader("実行結果")
@@ -311,14 +334,32 @@ def main():
                     result = st.session_state.vizql_result
                     
                     if result["success"]:
-                        st.json(result["data"])
-                            
+                        data = result["data"]
+                        
+                        # 結果の概要を表示
+                        if "queryResult" in data and "data" in data["queryResult"]:
+                            rows = data["queryResult"]["data"]
+                            st.info(f"📊 取得件数: {len(rows)}件")
+                        
+                        # JSONの表示
+                        with st.expander("📄 JSON結果（生データ）", expanded=False):
+                            st.json(data)
+                        
+                        # 表形式での表示（可能な場合）
+                        if "queryResult" in data and "data" in data["queryResult"]:
+                            st.subheader("📊 結果データ")
+                            try:
+                                import pandas as pd
+                                df = pd.DataFrame(data["queryResult"]["data"])
+                                st.dataframe(df, use_container_width=True)
+                            except Exception:
+                                st.json(data["queryResult"]["data"])
                     else:
-                        st.error(f"実行エラー: {result['error']}")
+                        st.error(f"❌ 実行エラー: {result['error']}")
                 else:
-                    st.info("VizQLクエリを実行すると結果がここに表示されます")
+                    st.info("🔍 VizQLクエリを実行すると結果がここに表示されます")
         else:
-            st.info("まず認証情報を設定してください")
+            st.info("🔐 まずサイドバーで認証情報を設定してください")
 
 if __name__ == "__main__":
     main()
