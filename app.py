@@ -33,12 +33,12 @@ def handle_auth_submit(auth_data):
 
 def main():
     st.set_page_config(
-        page_title="Tableau Web Authoring & VizQL Data Service Demo",
+        page_title="VizQL Data Service Demo",
         layout="wide",
         initial_sidebar_state="expanded"
     )
     
-    st.title("Tableau Web Authoring & VizQL Data Service Demo")
+    st.title("VizQL Data Service Demo")
     
     render_auth_sidebar(handle_auth_submit)
     
