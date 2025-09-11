@@ -1,9 +1,9 @@
 SAMPLE_QUERY_1 = {
-    "fields": [{"fieldCaption": "売上", "function": "SUM", "maxDecimalPlaces": 2}]
+    "fields": [{"fieldCaption": "売上", "function": "SUM", "maxDecimalPlaces": 0}]
 }
 
 SAMPLE_QUERY_2 = {
-    "fields": [{"fieldCaption": "売上", "function": "SUM", "maxDecimalPlaces": 2}],
+    "fields": [{"fieldCaption": "売上", "function": "SUM", "maxDecimalPlaces": 0}],
     "filters": [
         {
             "field": {"fieldCaption": "オーダー日"},
@@ -29,13 +29,12 @@ SAMPLE_QUERY_3 = {
       }
     ],
     "filters": [
-      {
-        "filterType": "DATE",
-        "field": { "fieldCaption": "オーダー日" },
-        "periodType": "MONTHS",
-        "dateRangeType": "NEXTN",
-        "rangeN": 12,
-        "anchorDate": "2024-04-01"
-      }
-    ]
+        {
+            "field": {"fieldCaption": "オーダー日"},
+            "filterType": "QUANTITATIVE_DATE",
+            "quantitativeFilterType": "RANGE",
+            "minDate": "2024-01-01",
+            "maxDate": "2024-12-31",
+        }
+    ],
   }
